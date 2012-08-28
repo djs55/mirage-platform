@@ -9,3 +9,4 @@ gnttab_stubs.o
 checksum_stubs.o
 sched_stubs.o
 start_info_stubs.o
+domctl_stubs.o
