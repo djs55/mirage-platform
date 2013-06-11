@@ -1,10 +1,10 @@
-OS ?= unix
+OS ?= xen 
 
 PREFIX ?= /usr/local
 
-ifneq "$(MIRAGE_OS)" ""
-OS := $(MIRAGE_OS)
-endif
+#ifneq "$(MIRAGE_OS)" ""
+#OS := $(MIRAGE_OS)
+#endif
 
 .PHONY: all build clean install test
 .DEFAULT: all
