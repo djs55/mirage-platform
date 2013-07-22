@@ -20,6 +20,8 @@ type t = (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
 external alloc_pages: int -> t = "caml_alloc_pages"
 
+external alloc_unmanaged_pages: int -> t = "caml_alloc_unmanaged_pages"
+
 let page_size = 4096
 
 let get n =
@@ -30,7 +32,18 @@ let get n =
       Gc.compact ();
       try alloc_pages n with _ -> raise Out_of_memory
 
+let get_unmanaged n =
+  if n < 1
+  then raise (Invalid_argument "The number of page should be greater or equal to 1")
+  else
+    try alloc_unmanaged_pages n with _ ->
+      Gc.compact ();
+      try alloc_pages n with _ -> raise Out_of_memory
+
+
 let get_order order = get (1 lsl order)
+
+let get_unmanaged_order order = get_unmanaged (1 lsl order)
 
 let length t = Bigarray.Array1.dim t
 

@@ -24,6 +24,8 @@ val get : int -> t
     pages. If there is not enough memory, the unikernel will
     terminate. *)
 
+val get_unmanaged : int -> t
+
 val get_order : int -> t
 (** [get_order i] is [get (1 lsl i)]. *)
 

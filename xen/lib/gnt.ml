@@ -64,7 +64,7 @@ module Gnttab = struct
   end
 
   let map_exn () grant writeable =
-    let page = Io_page.get 1 in
+    let page = Io_page.get_unmanaged 1 in
     let h = Raw.map_grant grant.ref page grant.domid (not writeable) in
     Local_mapping.make [h] page
 
@@ -72,7 +72,7 @@ module Gnttab = struct
 
   let mapv_exn () grants writeable =
     let nb_grants = List.length grants in
-    let block = Io_page.get nb_grants in
+    let block = Io_page.get_unmanaged nb_grants in
     let pages = Io_page.to_pages block in
     let hs =
       List.fold_left2 (fun acc g p ->

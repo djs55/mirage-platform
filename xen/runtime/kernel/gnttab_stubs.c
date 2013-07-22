@@ -102,6 +102,9 @@ base_page_of(value v_iopage)
     return (void*) page_aligned_view;
 }
 
+/* Store the address of mapped pages */
+static uint64_t *map_host_addr = NULL;
+
 CAMLprim value
 caml_gnttab_map(value v_ref, value v_iopage, value v_domid, value v_readonly)
 {
@@ -109,6 +112,12 @@ caml_gnttab_map(value v_ref, value v_iopage, value v_domid, value v_readonly)
     void *page = base_page_of(v_iopage);
 
     struct gnttab_map_grant_ref op;
+
+    if (!map_host_addr) {
+      map_host_addr = (uint64_t*) malloc(sizeof(uint64_t) * NR_GRANT_ENTRIES);
+      bzero(map_host_addr, sizeof(uint64_t) * NR_GRANT_ENTRIES);
+    }
+
     op.ref = Int_val(v_ref);
     op.dom = Int_val(v_domid);
     op.host_addr = (unsigned long) page;
@@ -121,7 +130,9 @@ caml_gnttab_map(value v_ref, value v_iopage, value v_domid, value v_readonly)
       caml_failwith("caml_gnttab_map");
     }
 
-    printk("GNTTABOP_map_grant_ref mapped to %x\n", op.host_addr);
+    *(map_host_addr + op.handle) = op.host_addr;
+
+    /* printk("GNTTABOP_map_grant_ref mapped to %x (handle = %d)\n", op.host_addr, op.handle); */
     CAMLreturn(Val_int(op.handle));
 }
 
@@ -130,17 +141,23 @@ caml_gnttab_unmap(value v_handle)
 {
   CAMLparam1(v_handle);
   struct gnttab_unmap_grant_ref op;
-  /* There's no need to resupply these values. 0 means "ignore" */
-  op.host_addr = 0;
+  int rc;
+  grant_ref_t t = Int_val(v_handle);
+
+  /* There's no need to resupply these values. 0 means "ignore". I don't believe it. */
+  op.host_addr = *(map_host_addr + t);
   op.dev_bus_addr = 0;
-  op.handle = Int_val(v_handle);
+  op.handle = t;
 
-  HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &op, 1);
+  rc = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &op, 1);
 
-  if (op.status != GNTST_okay) {
-    printk("GNTTABOP_unmap_grant_ref handle = %x failed", op.handle);
+  if (rc != 0 || op.status != GNTST_okay) {
+    printk("GNTTABOP_unmap_grant_ref failed: "
+           "returned %d, status %" PRId16 "\n",
+           rc, op.status);
     caml_failwith("Failed to unmap grant.");
   }
+  /* printk("GNTTABOP_unmap handle = %d\n", t); */
 
   CAMLreturn(Val_unit);
 }

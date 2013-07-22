@@ -44,3 +44,18 @@ caml_alloc_pages(value n_pages)
   }
   CAMLreturn(caml_ba_alloc_dims(CAML_BA_UINT8 | CAML_BA_C_LAYOUT | CAML_BA_MANAGED, 1, block, len));
 }
+
+CAMLprim value
+caml_alloc_unmanaged_pages(value n_pages)
+{
+  CAMLparam1(n_pages);
+  size_t len = Int_val(n_pages);
+
+  unsigned long addr = allocate_ondemand(len, 1);
+  if (addr == NULL) {
+    printk("allocate_ondemand(%d,%d) failed.\n", len, 1);
+    caml_failwith("allocate_ondemand");
+  }
+  CAMLreturn(caml_ba_alloc_dims(CAML_BA_UINT8 | CAML_BA_C_LAYOUT, 1, addr, len * PAGE_SIZE));
+}
+
