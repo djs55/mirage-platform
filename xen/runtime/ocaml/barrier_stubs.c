@@ -26,17 +26,25 @@
 
 #define xen_mb() mb()
 #define xen_wmb() wmb()
+#define xen_rmb() rmb()
 
 CAMLprim value
-caml_memory_barrier()
+caml_xen_mb()
 {
   xen_mb();
   return Val_unit;
 }
 
 CAMLprim value
-caml_write_memory_barrier()
+caml_xen_wmb()
 {
-  wmb();
+  xen_wmb();
+  return Val_unit;
+}
+
+CAMLprim value
+caml_xen_rmb()
+{
+  xen_rmb();
   return Val_unit;
 }
