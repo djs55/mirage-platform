@@ -39,6 +39,8 @@ module Raw = struct
   external end_access : gntref -> unit = "caml_gnttab_end_access"
   external map_grant : gntref -> Io_page.t -> int -> bool -> grant_handle = "caml_gnttab_map"
   external unmap_grant : grant_handle -> unit = "caml_gnttab_unmap"
+  external mapv : gntref array -> int array -> Io_page.t -> bool -> grant_handle array = "caml_gnttab_mapv"
+  external unmapv : grant_handle array -> unit = "caml_gnttab_unmapv"
 end
 
 module Gnttab = struct
@@ -71,21 +73,18 @@ module Gnttab = struct
   let map () grant writable = try Some (map_exn () grant writable) with _ -> None
 
   let mapv_exn () grants writeable =
-    let nb_grants = List.length grants in
-    let block = Io_page.get_unmanaged nb_grants in
+    let n = List.length grants in
+    let grants' = Array.of_list (List.map (fun g -> g.ref) grants) in
+    let domids' = Array.of_list (List.map (fun g -> g.domid) grants) in
+    let block = Io_page.get_unmanaged (Array.length grants') in
+    let handles' = Raw.mapv grants' domids' block (not writeable) in
     let pages = Io_page.to_pages block in
-    let hs =
-      List.fold_left2 (fun acc g p ->
-          try (Raw.map_grant g.ref p g.domid (not writeable))::acc with exn ->
-            List.iter Raw.unmap_grant acc;
-            raise exn
-        )
-        [] grants pages
-    in Local_mapping.make hs block
+    let handles = Array.to_list handles' in
+    Local_mapping.make handles block
 
   let mapv () grants writeable = try Some (mapv_exn () grants writeable) with _ -> None
 
-  let unmap_exn () t = List.iter Raw.unmap_grant t.Local_mapping.hs
+  let unmap_exn () t = Raw.unmapv (Array.of_list t.Local_mapping.hs)
 
   let with_mapping interface grant writeable fn =
     let mapping = map interface grant writeable in

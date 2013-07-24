@@ -137,6 +137,66 @@ caml_gnttab_map(value v_ref, value v_iopage, value v_domid, value v_readonly)
 }
 
 CAMLprim value
+caml_gnttab_mapv(value v_gntref_array, value v_domid_array, value v_iopage, value v_readonly)
+{
+    CAMLparam4(v_gntref_array, v_domid_array, v_iopage, v_readonly);
+    CAMLlocal1(result);
+    int rc;
+    unsigned int i;
+    int len = Wosize_val(v_gntref_array);
+    struct gnttab_map_grant_ref ops[len];
+    void *page = base_page_of(v_iopage);
+
+
+    if (!map_host_addr) {
+      map_host_addr = (uint64_t*) malloc(sizeof(uint64_t) * NR_GRANT_ENTRIES);
+      bzero(map_host_addr, sizeof(uint64_t) * NR_GRANT_ENTRIES);
+    }
+
+    for(i=0;i<Wosize_val(v_gntref_array);i++){
+      ops[i].ref = Int_val(Field(v_gntref_array, i));
+      ops[i].dom = Int_val(Field(v_domid_array, i));
+      ops[i].host_addr = (unsigned long) page + PAGE_SIZE * i;
+      ops[i].flags = GNTMAP_host_map;
+      if (Bool_val(v_readonly)) ops[i].flags |= GNTMAP_readonly;
+    }
+    rc = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &ops[0], len);
+    if (rc != 0){
+      printk("GNTTABOP_map_grant_ref failed (len = %d) rc = %d\n", len, rc);
+      caml_failwith("caml_gnttab_mapv");
+    }
+    result = caml_alloc_tuple(len);
+    for(i=0;i<len;i++) {
+      *(map_host_addr + ops[i].handle) = ops[i].host_addr;
+      Store_field(result, i, Val_int(ops[i].handle));
+    }
+    CAMLreturn(result);
+}
+
+CAMLprim value
+caml_gnttab_unmapv(value v_gntref_array)
+{
+    CAMLparam1(v_gntref_array);
+    int rc;
+    unsigned int i;
+    int len = Wosize_val(v_gntref_array);
+    struct gnttab_unmap_grant_ref ops[len];
+
+    for(i=0;i<len;i++){
+      ops[i].handle = Int_val(Field(v_gntref_array, i));
+      ops[i].host_addr = *(map_host_addr + ops[i].handle);
+      ops[i].dev_bus_addr = 0;
+    };
+
+    rc = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &ops[0], len);
+    if (rc != 0) {
+      printk("GNTTABOP_unmap_grant_ref len = %d failed\n", len);
+      caml_failwith("caml_gnttab_unmapv");
+    }
+    CAMLreturn(Val_unit);
+}
+
+CAMLprim value
 caml_gnttab_unmap(value v_handle)
 {
   CAMLparam1(v_handle);
