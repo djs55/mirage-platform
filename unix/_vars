@@ -1,6 +1,6 @@
 NAME=mirage
 VERSION=0.9.8
-DEPS="cstruct lwt lwt.unix tuntap ipaddr"
+DEPS="cstruct lwt lwt.unix tuntap ipaddr mirage-types"
 SYNTAX_DEPS="cstruct.syntax lwt.syntax"
 RUNTIME="unixrun"
 LIB="oS"
