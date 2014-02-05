@@ -15,6 +15,7 @@
 
 open Lwt
 
+(*
 (* Mirage transport for XenStore. *)
 module IO = struct
     type 'a t = 'a Lwt.t
@@ -89,4 +90,4 @@ include Xs_client_lwt.Client(IO)
 let resume client =
   IO.refresh();
   resume client
-
+*)
